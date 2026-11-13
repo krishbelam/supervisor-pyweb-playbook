@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Supervisor Playbook: Django, Flask &amp; FastAPI behind nginx</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#f1f5f3;--surf:#fff;--ink:#12211d;--mute:#51625d;--line:#cfdad5;--acc:#0b6b5f;--accbg:#d9efe9;--warn:#b4400f;--warnbg:#fbe9df;--code:#0e1a17;--codeink:#d8efe8;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1816;--surf:#15231f;--ink:#e2ede9;--mute:#9bb0a9;--line:#273934;--acc:#5fd8c3;--accbg:#173a33;--warn:#f2a272;--warnbg:#3a2316;--code:#091210;--codeink:#cfeee6;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1816;--surf:#15231f;--ink:#e2ede9;--mute:#9bb0a9;--line:#273934;--acc:#5fd8c3;--accbg:#173a33;--warn:#f2a272;--warnbg:#3a2316;--code:#091210;--codeink:#cfeee6;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "IBM Plex Sans",system-ui,sans-serif}
+.wrap{max-width:860px;margin:0 auto;padding:28px 18px 80px}
+h1{font-size:clamp(1.6rem,4.5vw,2.3rem);line-height:1.15;margin:0 0 8px;font-weight:600;letter-spacing:-.01em}
+h2{font-size:1.2rem;margin:0 0 6px;font-weight:600}
+p{margin:6px 0;max-width:70ch}
+.lead{color:var(--mute)}
+code,pre{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-size:.86rem}
+:not(pre)>code{background:var(--accbg);padding:1px 6px;border-radius:4px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:22px 0 16px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tabs button,.btn{font:inherit;font-size:.92rem;border:1px solid var(--line);background:var(--surf);color:var(--ink);padding:7px 14px;border-radius:8px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+section.panel{display:none}section.panel.on{display:block}
+.step{background:var(--surf);border:1px solid var(--line);border-radius:10px;margin:12px 0}
+.step summary{cursor:pointer;padding:14px 16px;display:flex;gap:12px;align-items:center;font-weight:500;list-style:none}
+.step summary::-webkit-details-marker{display:none}
+.step .body{padding:0 16px 14px 16px}
+.step.done{border-color:var(--acc)}
+.step.done summary span.t{text-decoration:line-through;color:var(--mute)}
+.chk{width:22px;height:22px;accent-color:var(--acc);flex:none}
+.pwrap{position:relative;margin:10px 0}
+pre{margin:0;background:var(--code);color:var(--codeink);padding:14px 14px;border-radius:8px;overflow-x:auto;line-height:1.55}
+.cp{position:absolute;top:6px;right:6px;font:inherit;font-size:.75rem;background:#ffffff1a;color:var(--codeink);border:1px solid #ffffff33;border-radius:6px;padding:2px 9px;cursor:pointer}
+.note{background:var(--accbg);border-left:4px solid var(--acc);padding:9px 12px;border-radius:0 8px 8px 0;margin:10px 0;font-size:.93rem}
+.note.warn{background:var(--warnbg);border-color:var(--warn)}
+.bar{height:8px;background:var(--line);border-radius:6px;overflow:hidden;margin:10px 0 2px}
+.bar i{display:block;height:100%;width:0;background:var(--acc);transition:width .25s}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0}
+.seg button{border:0;border-radius:0;background:var(--surf);color:var(--ink);font:inherit;font-size:.88rem;padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--acc);color:var(--bg)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:.92rem}
+th,td{border-bottom:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+input[type=search]{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surf);color:var(--ink)}
+.cmd{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:8px 16px;padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.cmd code{background:none;padding:0;word-break:break-word;cursor:pointer;color:var(--acc)}
+.cmd span{color:var(--mute);font-size:.92rem}
+@media(max-width:560px){.cmd{grid-template-columns:1fr;gap:2px}}
+.card{background:var(--surf);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0}
+.fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin:10px 0}
+.fields label{font-size:.82rem;color:var(--mute);display:flex;flex-direction:column;gap:3px}
+.fields input{font:inherit;font-family:"IBM Plex Mono",monospace;font-size:.84rem;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+.pl .cmd{grid-template-columns:minmax(0,.9fr) minmax(0,1.5fr)}.pl .cmd code{cursor:default}
+.nw{font-size:.7rem;background:var(--accbg);color:var(--acc);border-radius:4px;padding:0 5px;font-style:normal}
+@media(max-width:560px){.pl .cmd{grid-template-columns:1fr}}
+.fw{font-size:.9rem;display:inline-flex;gap:8px;align-items:center}.fw select{font:inherit;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Supervisor playbook for Python web apps</h1>
+<p class="lead">Supervisor keeps any long-running command alive, so this works for Django, Flask or FastAPI behind nginx, with an optional React frontend. Pick your framework below, fill in your details, and every snippet adapts. Tick off steps as you go and copy any command with one click.</p>
+
+<details class="card" id="proj" open><summary style="cursor:pointer;font-weight:600">Your project settings</summary>
+<p class="lead" style="font-size:.9rem">Placeholders show until you type. Every command and config below updates live, and your values are remembered in this browser. Program names stay <code>nginx</code>, <code>gunicorn</code> and <code>react_app</code>; rename them if one server runs several projects.</p>
+<label class="fw">Framework <select id="fw"><option value="django">Django (WSGI)</option><option value="flask">Flask (WSGI)</option><option value="fastapi">FastAPI (ASGI)</option></select></label>
+<p class="lead" id="fwhint" style="font-size:.85rem"></p>
+<div class="fields" id="fields"></div><button class="btn" id="reset">Reset to placeholders</button></details>
+<div class="tabs" role="tablist">
+<button role="tab" aria-selected="true" data-p="setup">Setup steps</button>
+<button role="tab" aria-selected="false" data-p="configs">Configs</button>
+<button role="tab" aria-selected="false" data-p="cheat">Commands</button>
+<button role="tab" aria-selected="false" data-p="deploy">Deploying changes</button>
+<button role="tab" aria-selected="false" data-p="fit">When to use it</button>
+<button role="tab" aria-selected="false" data-p="uninstall">Uninstall</button>
+</div>
+
+<!-- SETUP -->
+<section class="panel on" id="setup">
+<div class="bar"><i id="prog"></i></div>
+<p class="lead progt" style="font-size:.88rem">0 of 7 steps done</p>
+
+<details class="step" open><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Install supervisor and make sure it runs</span></summary><div class="body">
+<pre>sudo apt update
+sudo apt install supervisor -y
+sudo systemctl enable --now supervisor
+sudo systemctl status supervisor</pre>
+<p><code>supervisord</code> is the daemon. <code>supervisorctl</code> is the CLI you use to talk to it. Both need root (or a user in the socket’s group) to work.</p></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Put each config in /etc/supervisor/conf.d/</span></summary><div class="body">
+<pre>sudo nano /etc/supervisor/conf.d/nginx.conf
+sudo nano /etc/supervisor/conf.d/gunicorn.conf
+sudo nano /etc/supervisor/conf.d/react.conf</pre>
+<p>The main file <code>/etc/supervisor/supervisord.conf</code> ends with an <code>[include]</code> block that loads <code>/etc/supervisor/conf.d/*.conf</code>. Files must end in <code>.conf</code> or they are ignored. One file can hold several <code>[program:x]</code> sections, but one file per program is easier to manage.</p>
+<div class="note">Paste the exact contents from the “Configs” tab, or use the suggested versions there.</div></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Stop the systemd nginx so supervisor can own port 80</span></summary><div class="body">
+<pre>sudo nginx -t                      # validate your site config first
+sudo systemctl stop nginx
+sudo systemctl disable nginx       # stops it returning on reboot
+sudo ss -tlnp | grep -E ':80|:443' # should be empty now</pre>
+<div class="note warn">If you skip this, supervisor’s nginx fails with “address already in use” and keeps retrying until it hits <code>startretries</code>.</div></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Make sure log files and the app’s prerequisites exist</span></summary><div class="body">
+<pre>ls {{VENV}}/bin/gunicorn
+which serve                         # React needs the full path, see Configs
+sudo touch /var/log/{{APP}}.stdout.log /var/log/{{APP}}.stderr.log</pre>
+<p>Supervisor creates log files itself, but it fails to start a program if the log directory doesn’t exist or isn’t writable.</p></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Tell supervisor to read the new files</span></summary><div class="body">
+<pre>sudo supervisorctl reread    # lists new/changed/removed groups, changes nothing
+sudo supervisorctl update    # applies the changes and starts autostart programs</pre>
+<p>Expect output like <code>nginx: available</code> then <code>nginx: added process group</code>. Use <code>reread</code> + <code>update</code> whenever you edit a <code>.conf</code>. Only the programs whose config changed get restarted.</p></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Check status</span></summary><div class="body">
+<pre>sudo supervisorctl status</pre>
+<p>You should see <code>RUNNING</code> for all three. <code>BACKOFF</code> or <code>FATAL</code> means the command exits right after start. Read the stderr log (see Commands tab) for the reason.</p></div></details>
+
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Test the whole chain</span></summary><div class="body">
+<pre>ls -l {{SOCK}}                                  # gunicorn socket exists
+curl --unix-socket {{SOCK}} http://localhost/   # talks to Django directly
+curl -I http://localhost                              # through nginx</pre>
+<p>Your nginx site config should proxy to the socket:</p>
+<pre>location / {
+    proxy_pass http://unix:{{SOCK}};
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}</pre></div></details>
+</section>
+
+<!-- CONFIGS -->
+<section class="panel" id="configs">
+<p>Pick a file, then switch between a basic version and a suggested one. Suggestions are optional; the basic versions work as is, apart from the React <code>serve</code> path issue.</p>
+<div class="seg" id="which" role="group" aria-label="Config file">
+<button data-c="nginx" aria-pressed="true">nginx.conf</button><button data-c="gunicorn" aria-pressed="false">gunicorn.conf</button><button data-c="react" aria-pressed="false">react.conf</button></div><br>
+<div class="seg" id="ver" role="group" aria-label="Version">
+<button data-v="orig" aria-pressed="true">Basic</button><button data-v="sugg" aria-pressed="false">Suggested</button></div>
+<div id="cfgbox"></div>
+<div id="cfgparams"></div>
+<div id="cfgnotes"></div>
+
+<h2 style="margin-top:26px">How supervisor names your processes</h2>
+<p>Because <code>process_name</code> uses <code>%(process_num)02d</code>, supervisor makes a <em>group</em> named after the program and a process inside it. This is what you type in <code>supervisorctl</code>.</p>
+<div class="scroll"><table>
+<tr><th>Program</th><th>Process name</th><th>Restart it with</th></tr>
+<tr><td><code>nginx</code></td><td><code>nginx:nginx_00</code></td><td><code>supervisorctl restart nginx:*</code></td></tr>
+<tr><td><code>gunicorn</code></td><td><code>gunicorn:gunicorn_00</code></td><td><code>supervisorctl restart gunicorn:*</code></td></tr>
+<tr><td><code>react_app</code></td><td><code>react_app</code> (your <code>process_name</code> line is commented out)</td><td><code>supervisorctl restart react_app</code></td></tr>
+</table></div>
+<div class="note">Using <code>group:*</code> works for every program, with or without <code>process_name</code>, so it is the safest habit.</div>
+</section>
+
+<!-- CHEAT -->
+<section class="panel" id="cheat">
+<input type="search" id="q" placeholder="Filter commands, e.g. logs, restart, reload" aria-label="Filter commands">
+<p class="lead" style="font-size:.85rem">Click a command to copy it.</p>
+<div id="cmds"></div>
+</section>
+
+<!-- DEPLOY -->
+<section class="panel" id="deploy">
+<div class="card"><h2>Backend code changed</h2>
+<pre>cd {{BE}}
+source {{VENV}}/bin/activate
+pip install -r requirements.txt     # if dependencies changed
+python manage.py migrate            # Django only
+python manage.py collectstatic --noinput   # Django only
+sudo supervisorctl restart gunicorn:*</pre>
+<div class="note warn">Your gunicorn uses <code>--preload</code>, so the app is imported once in the master process. A <code>HUP</code> reload will <strong>not</strong> pick up new code. Do a full restart.</div></div>
+
+<div class="card"><h2>React app rebuilt</h2>
+<pre>cd {{FE}}
+npm run build
+sudo supervisorctl restart react_app</pre>
+<p><code>serve</code> reads files from disk, so often a rebuild alone is enough. Restart if the browser still shows the old bundle after a hard refresh.</p></div>
+
+<div class="card"><h2>Nginx site config changed</h2>
+<pre>sudo nginx -t && sudo supervisorctl signal HUP nginx:*</pre>
+<p>HUP makes nginx reload its config gracefully with no dropped connections. This is the equivalent of <code>nginx -s reload</code>, and it keeps the process under supervisor’s control.</p></div>
+
+<div class="card"><h2>A supervisor .conf file changed</h2>
+<pre>sudo supervisorctl reread
+sudo supervisorctl update</pre>
+<p>A plain <code>restart</code> does <strong>not</strong> re-read the config file. Always run <code>reread</code> + <code>update</code> after editing it.</p></div>
+
+<div class="card"><h2>Something is stuck in FATAL or BACKOFF</h2>
+<pre>sudo supervisorctl tail -f gunicorn:* stderr
+sudo supervisorctl tail gunicorn:* stdout
+sudo tail -n 50 /var/log/{{APP}}.stderr.log</pre>
+<p>Run the same command by hand as the same user to see the real error, for example <code>cd {{BE}} &amp;&amp; {{VENV}}/bin/gunicorn {{WSGI}}</code>.</p></div>
+</section>
+<section class="panel" id="fit">
+<p>Supervisor manages processes on <strong>one machine</strong>. Whether that’s enough depends on how many services you run and where.</p>
+<div class="card"><h2>Good fit</h2><ul><li>One server or VM running a handful of services behind nginx.</li><li>Side projects, internal tools, staging boxes and small production apps.</li><li>Background workers (Celery, queue consumers) next to a web app.</li></ul></div>
+<div class="card"><h2>Microservices: where you outgrow it</h2><ul><li>Roughly ten or more services, or services spread over several machines.</li><li>You need scaling across hosts, health-based routing, service discovery or rolling deploys. Supervisor has none of these.</li><li>Each service has its own dependencies, release cycle or team. Containers plus an orchestrator fit better.</li><li>Lighter single-host alternatives: <code>systemd</code> units (often the better default on a modern distro) or Docker Compose.</li></ul></div>
+<div class="card"><h2>Running in Kubernetes: don’t use supervisor</h2>
+<p>Kubernetes already restarts, probes and scales your processes, and the convention is one process per container. Supervisor inside a pod hides a dead child process from the kubelet: the container looks healthy while the app is down, so probes, restarts and alerts stop telling the truth.</p></div>
+<h2 style="margin-top:22px">What replaces each supervisor feature</h2>
+<div class="scroll"><table>
+<tr><th>This playbook</th><th>In Kubernetes</th></tr>
+<tr><td><code>autorestart</code>, <code>startretries</code></td><td><code>restartPolicy</code> and the Deployment controller (crash loops show as <code>CrashLoopBackOff</code>)</td></tr>
+<tr><td><code>startsecs</code></td><td>Readiness and startup probes</td></tr>
+<tr><td><code>numprocs</code></td><td><code>replicas</code> (or Gunicorn <code>--workers</code> inside one pod)</td></tr>
+<tr><td><code>stdout_logfile</code> and rotation</td><td>Write to stdout and stderr; the cluster collects logs</td></tr>
+<tr><td><code>supervisorctl restart gunicorn:*</code></td><td><code>kubectl rollout restart deployment/&lt;name&gt;</code></td></tr>
+<tr><td><code>signal HUP nginx:*</code></td><td>Update the ConfigMap, then roll out (or let the ingress controller reload)</td></tr>
+<tr><td><code>environment=</code></td><td><code>env</code>, ConfigMap and Secret</td></tr>
+<tr><td>nginx as front proxy</td><td>Ingress controller (or an nginx sidecar container)</td></tr>
+<tr><td><code>serve</code> for React</td><td>Build into an nginx image, or host the static files on a CDN or object storage</td></tr>
+</table></div>
+<h2 style="margin-top:22px">Carrying your Gunicorn setup into a container</h2>
+<pre>CMD exec gunicorn --bind 0.0.0.0:8000 --worker-tmp-dir /dev/shm {{WORKER}} {{WSGI}}</pre>
+<ul><li>Bind to a TCP port, not a unix socket. A Service routes over TCP.</li><li><code>exec</code> makes Gunicorn PID 1, so Kubernetes’ SIGTERM reaches it and shutdown is graceful.</li><li><code>--worker-tmp-dir /dev/shm</code> avoids heartbeat stalls on container filesystems.</li></ul>
+<div class="note">The one case for several processes in a pod is a sidecar, such as nginx or a log shipper beside your app. Run those as separate containers in the same pod, not under supervisor.</div>
+</section>
+
+<section class="panel" id="uninstall">
+<p>For anyone who tried this out and wants a clean exit. Pick how far to go, then work down the list.</p>
+<div class="seg" id="scope" role="group" aria-label="Scope"><button data-s="proj" aria-pressed="true">This project only</button><button data-s="full" aria-pressed="false">Remove everything</button></div>
+<div class="bar"><i></i></div><p class="lead progt" style="font-size:.88rem"></p>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Stop the programs</span></summary><div class="body"><pre>sudo supervisorctl stop nginx:* gunicorn:* react_app
+sudo supervisorctl status    # all should say STOPPED</pre></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Delete the config files</span></summary><div class="body"><pre>sudo rm /etc/supervisor/conf.d/nginx.conf /etc/supervisor/conf.d/gunicorn.conf /etc/supervisor/conf.d/react.conf
+sudo supervisorctl reread
+sudo supervisorctl update</pre><div class="note warn">Don’t skip this. A leftover <code>.conf</code> brings the program back on the next reboot. <code>update</code> should print “removed process group” for each one.</div></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Remove logs and the socket</span></summary><div class="body"><pre>sudo rm -f /var/log/{{APP}}.stdout.log* /var/log/{{APP}}.stderr.log*
+sudo rm -f /var/log/{{APP}}_react.*
+sudo rm -f /var/log/supervisor/nginx_*
+sudo rm -f {{SOCK}}</pre></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Give nginx back to systemd, or remove it</span></summary><div class="body"><p>Confirm nothing holds port 80, then pick one:</p><pre>sudo ss -tlnp | grep ":80"
+
+# Option A: go back to the normal nginx service
+sudo systemctl enable --now nginx
+
+# Option B: remove nginx completely
+sudo apt purge nginx nginx-common -y
+sudo apt autoremove -y</pre><div class="note warn">Option B deletes <code>/etc/nginx</code>, including your site configs. Copy them somewhere first.</div></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Remove the global React server</span></summary><div class="body"><pre>sudo npm uninstall -g serve</pre><p>Skip this if you installed <code>serve</code> for other projects too.</p></div></details>
+<details class="step" data-full hidden><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Uninstall supervisor itself</span></summary><div class="body"><div class="note warn">This removes supervisor for <strong>every</strong> project on this machine, including configs you didn’t create here.</div><pre>sudo systemctl stop supervisor
+sudo systemctl disable supervisor
+sudo apt purge supervisor -y
+sudo apt autoremove -y
+sudo rm -rf /etc/supervisor /var/log/supervisor</pre></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Optional: delete virtualenv and build output</span></summary><div class="body"><p>Your source code stays untouched. Only do this if you won’t need these again.</p><pre>rm -rf {{VENV}}
+rm -rf {{FE}}/build {{FE}}/node_modules</pre></div></details>
+<details class="step"><summary><input class="chk" type="checkbox" aria-label="done"><span class="t">Verify it’s clean</span></summary><div class="body"><pre>ps aux | grep -E "gunicorn|nginx|serve" | grep -v grep
+sudo ss -tlnp | grep -E ":80|:{{PORT}}"
+ls /etc/supervisor/conf.d/
+sudo supervisorctl status    # with “Remove everything” this command no longer exists</pre><p>No leftover processes, nothing on those ports, and no project <code>.conf</code> files means you’re done.</p></div></details>
+</section>
+</div>
+
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+function copy(t,btn){const ok=()=>{if(btn){const o=btn.textContent;btn.textContent='Copied';setTimeout(()=>btn.textContent=o,1100)}};
+ if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(ok).catch(()=>fb(t,ok))}else fb(t,ok)}
+function fb(t,ok){const a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity=0;document.body.appendChild(a);a.select();try{document.execCommand('copy');ok()}catch(e){}a.remove()}
+function addCopy(root){root.querySelectorAll('pre').forEach(p=>{if(p.parentNode.classList.contains('pwrap'))return;const w=document.createElement('div');w.className='pwrap';p.parentNode.insertBefore(w,p);w.appendChild(p);const b=document.createElement('button');b.className='cp';b.textContent='Copy';b.onclick=()=>copy(p.innerText,b);w.appendChild(b)})}
+
+// tabs
+$$('.tabs button').forEach(b=>b.onclick=()=>{$$('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));$$('section.panel').forEach(s=>s.classList.toggle('on',s.id===b.dataset.p))});
+
+// checklist
+function prog(p){const st=[...p.querySelectorAll('.step')].filter(x=>!x.hidden);const n=st.filter(x=>x.querySelector('.chk').checked).length;p.querySelector('.bar i').style.width=(st.length?n/st.length*100:0)+'%';p.querySelector('.progt').textContent=n+' of '+st.length+' steps done'+(st.length&&n===st.length?'. All set.':'')}
+$$('.step').forEach(x=>{const c=x.querySelector('.chk');c.addEventListener('click',e=>e.stopPropagation());c.addEventListener('change',()=>{x.classList.toggle('done',c.checked);prog(x.closest('section'))})});
+$$('#scope button').forEach(b=>b.onclick=()=>{$$('#scope button').forEach(x=>x.setAttribute('aria-pressed',x===b));$$('#uninstall .step[data-full]').forEach(x=>x.hidden=b.dataset.s!=='full');prog($('#uninstall'))});
+
+// configs
+const esc=t=>t.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const C={
+nginx:{orig:`[program:nginx]
+command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+startretries=5
+numprocs=1
+startsecs=0
+process_name=%(program_name)s_%(process_num)02d
+stderr_logfile=/var/log/supervisor/%(program_name)s_stderr.log
+stderr_logfile_maxbytes=10MB
+stdout_logfile=/var/log/supervisor/%(program_name)s_stdout.log
+stdout_logfile_maxbytes=10MB`,
+sugg:`[program:nginx]
+command=/usr/sbin/nginx -g "daemon off;"
+autostart=true
+autorestart=true
+startretries=5
+startsecs=3
+stopsignal=QUIT
+process_name=%(program_name)s_%(process_num)02d
+numprocs=1
+stderr_logfile=/var/log/supervisor/%(program_name)s_stderr.log
+stderr_logfile_maxbytes=10MB
+stdout_logfile=/var/log/supervisor/%(program_name)s_stdout.log
+stdout_logfile_maxbytes=10MB`,
+notes:['<code>startsecs=0</code> means supervisor calls nginx “started” instantly, so <code>startretries</code> never kicks in if it crashes at boot. <code>startsecs=3</code> makes a quick crash count as a failed start.','<code>stopsignal=QUIT</code> gives nginx a graceful shutdown so in-flight requests finish.','<code>daemon off;</code> is required: supervisor must own the foreground process.']},
+gunicorn:{orig:`[program:gunicorn]
+directory={{BE}}/
+command={{VENV}}/bin/gunicorn --name={{APP}} --preload --bind unix:{{SOCK}} {{WORKER}} {{WSGI}}
+autostart=true
+autorestart=true
+process_name=%(program_name)s_%(process_num)02d
+stdout_logfile=/var/log/{{APP}}.stdout.log
+stdout_logfile_maxbytes=100KB
+stdout_logfile_backups=5
+stderr_logfile=/var/log/{{APP}}.stderr.log
+stderr_logfile_maxbytes=100KB
+stderr_logfile_backups=5`,
+sugg:`[program:gunicorn]
+directory={{BE}}/
+command={{VENV}}/bin/gunicorn --name={{APP}} --preload --bind unix:{{SOCK}} {{WORKER}} {{WSGI}}
+user={{USER}}
+autostart=true
+autorestart=true
+startsecs=5
+stopwaitsecs=30
+stopasgroup=true
+killasgroup=true
+process_name=%(program_name)s_%(process_num)02d
+stdout_logfile=/var/log/{{APP}}.stdout.log
+stdout_logfile_maxbytes=10MB
+stdout_logfile_backups=5
+stderr_logfile=/var/log/{{APP}}.stderr.log
+stderr_logfile_maxbytes=10MB
+stderr_logfile_backups=5`,
+notes:['Without <code>user=</code> gunicorn runs as root. Running as <code>{{USER}}</code> is safer, but then make sure the log files are writable by that user.','<code>100KB</code> log files rotate almost instantly, so you lose history during an incident. 10MB x 5 backups is more useful.','<code>stopasgroup</code> and <code>killasgroup</code> make sure the master and workers die together on stop.','If nginx runs as <code>www-data</code> and can’t reach the socket, check <code>ls -l {{SOCK}}</code> and consider <code>--umask 007</code> with a shared group, or move the socket to <code>/run/{{APP}}.sock</code>.']},
+react:{orig:`[program:react_app]
+directory={{FE}}/build/
+command=serve
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/{{APP}}_react.stderr.log
+stdout_logfile=/var/log/{{APP}}_react.out.log
+#process_name=%(program_name)s_%(process_num)02d`,
+sugg:`[program:react_app]
+directory={{FE}}/
+command=/usr/local/bin/serve -s build -l {{PORT}}
+user={{USER}}
+environment=HOME="{{HOME}}"
+autostart=true
+autorestart=true
+startsecs=3
+stopasgroup=true
+killasgroup=true
+stderr_logfile=/var/log/{{APP}}_react.stderr.log
+stderr_logfile_maxbytes=10MB
+stdout_logfile=/var/log/{{APP}}_react.out.log
+stdout_logfile_maxbytes=10MB`,
+notes:['Supervisor runs with a minimal <code>PATH</code>, so a bare <code>serve</code> is the most likely reason this program goes FATAL. Run <code>which serve</code> and use the full path (the path above is a guess for a global npm install).','Plain <code>serve</code> in <code>build/</code> serves the current folder but has no SPA fallback. <code>-s</code> rewrites unknown routes to <code>index.html</code>, which React Router needs on page refresh.','<code>-l {{PORT}}</code> pins the port, so your nginx <code>proxy_pass</code> stays valid.','If <code>serve</code> is a Node script, <code>stopasgroup</code> avoids leaving an orphan process holding the port after a restart.']}
+};
+const D={'[program]':'Declares a program. The name after the colon is what you type in supervisorctl.',
+directory:'Folder supervisor changes into before running the command.',
+command:'The foreground command supervisor runs and keeps alive.',
+user:'Linux user the process runs as (supervisord must be root to switch).',
+environment:'Extra environment variables passed to the process.',
+autostart:'Start this program automatically when supervisord starts.',
+autorestart:'Restart the program if it exits (true means always).',
+startsecs:'Seconds it must stay up to count as started; 0 skips the check.',
+startretries:'Failed start attempts allowed before the program is marked FATAL.',
+numprocs:'How many copies of the program supervisor runs (default 1). Unrelated to nginx’s own worker processes.',
+process_name:'Naming pattern for each copy; must be unique when numprocs is above 1.',
+stopsignal:'Signal sent to stop it (default TERM).',
+stopwaitsecs:'Seconds to wait after the stop signal before force-killing.',
+stopasgroup:'Send the stop signal to the whole process group, not just the main PID.',
+killasgroup:'Force-kill the whole process group if a kill is needed.',
+stdout_logfile:'File that receives the program’s standard output.',
+stdout_logfile_maxbytes:'Size at which the stdout log rotates.',
+stdout_logfile_backups:'Rotated stdout logs to keep.',
+stderr_logfile:'File that receives the program’s error output.',
+stderr_logfile_maxbytes:'Size at which the stderr log rotates.',
+stderr_logfile_backups:'Rotated stderr logs to keep.'};
+const FL={'-g':'nginx: apply this global directive from the command line; “daemon off;” keeps nginx in the foreground so supervisor can track it.',
+'--pythonpath':'Adds a folder to Python’s import path (relative to directory).',
+'--name':'Sets the gunicorn process title shown in ps and top.',
+'--preload':'Loads the app once in the master before forking workers. Saves memory, but code changes need a full restart.',
+'--bind':'Where to listen; unix:/path is a socket file for nginx to proxy to.',
+'--worker-class':'Worker type: gthread (threads, for WSGI) or uvicorn.workers.UvicornWorker (for ASGI such as FastAPI).',
+'--workers':'Number of worker processes.',
+'--threads':'Threads per worker, so concurrency is workers × threads.',
+'-s':'serve: single-page-app mode, unknown paths fall back to index.html.',
+'-l':'serve: port to listen on.'};
+const VAL=['-g','--bind','--workers','--threads','-l'];
+function renderParams(){const txt=sub(C[cf][cv]);const base=new Set(C[cf].orig.match(/^\w+(?==)/gm)||[]);const rows=[];
+txt.split('\n').forEach(l=>{l=l.trim();if(!l||l[0]==='#')return;let m=l.match(/^\[program:(.+)\]$/);if(m){rows.push([l,D['[program]'],0]);return}
+m=l.match(/^(\w+)=(.*)$/);if(!m)return;rows.push([m[1],D[m[1]]||'',cv==='sugg'&&!base.has(m[1])]);
+if(m[1]==='command'){const t=m[2].match(/"[^"]*"|\S+/g)||[];for(let i=1;i<t.length;i++){const k=t[i].split('=')[0];if(FL[k]){let lab=t[i];if(VAL.includes(k)&&t[i+1]&&t[i+1][0]!=='-'&&t[i].indexOf('=')<0)lab+=' '+t[++i];rows.push([lab,FL[k],0])}else if(cf==='gunicorn'&&/^[\w.]+:\w+$/.test(t[i]))rows.push([t[i],'The app gunicorn loads, as module:callable.',0]);else if(cf==='react'&&t[i][0]!=='-')rows.push([t[i],'serve: folder to serve, relative to directory.',0])}}});
+$('#cfgparams').innerHTML='<div class="card pl"><h2>What each setting does</h2>'+rows.map(([k,d,n])=>'<div class="cmd"><code>'+esc(k)+(n?' <em class="nw">new</em>':'')+'</code><span>'+esc(d)+'</span></div>').join('')+'</div>'}
+let cf='nginx',cv='orig';
+function renderCfg(){const d=C[cf];$('#cfgbox').innerHTML='<div class="pwrap"><pre>'+esc(sub(d[cv]))+'</pre></div>';addCopy($('#cfgbox'));renderParams();
+ $('#cfgnotes').innerHTML=cv==='sugg'?'<div class="card"><h2>What changed and why</h2><ul>'+d.notes.map(n=>'<li>'+sub(n)+'</li>').join('')+'</ul></div>':'<p class="lead">The basic version, saved as <code>/etc/supervisor/conf.d/'+cf+'.conf</code>. Switch to “Suggested” for the reasoning on each tweak.</p>'}
+$$('#which button').forEach(b=>b.onclick=()=>{cf=b.dataset.c;$$('#which button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderCfg()});
+$$('#ver button').forEach(b=>b.onclick=()=>{cv=b.dataset.v;$$('#ver button').forEach(x=>x.setAttribute('aria-pressed',x===b));renderCfg()});
+
+// cheat sheet
+const K=[
+['sudo supervisorctl status','Show state of every program'],
+['sudo supervisorctl status gunicorn:*','Status of one group'],
+['sudo supervisorctl start gunicorn:*','Start a program'],
+['sudo supervisorctl stop gunicorn:*','Stop a program'],
+['sudo supervisorctl restart gunicorn:*','Stop then start (does not re-read the config)'],
+['sudo supervisorctl restart all','Restart everything'],
+['sudo supervisorctl reread','Detect changed .conf files, apply nothing'],
+['sudo supervisorctl update','Apply reread changes, restart only changed programs'],
+['sudo supervisorctl reload','Restart supervisord itself and every program (use sparingly)'],
+['sudo supervisorctl add react_app','Add a newly read program to the running set'],
+['sudo supervisorctl remove react_app','Remove a stopped program from the running set'],
+['sudo supervisorctl signal HUP nginx:*','Send a signal; HUP reloads nginx config gracefully'],
+['sudo supervisorctl tail gunicorn:* stderr','Last chunk of the stderr log'],
+['sudo supervisorctl tail -f gunicorn:* stderr','Follow the log live (Ctrl+C to leave)'],
+['sudo tail -f /var/log/{{APP}}.stderr.log','Follow the log file directly'],
+['sudo supervisorctl','Open the interactive prompt; type help for all commands'],
+['sudo supervisorctl avail','List programs defined in config'],
+['sudo systemctl restart supervisor','Restart the supervisor daemon via systemd'],
+['sudo systemctl status supervisor','Is supervisord itself alive?'],
+['sudo ss -tlnp | grep 80','See which process holds port 80'],
+['sudo nginx -t','Validate nginx config before reloading']];
+function renderK(f){f=(f||'').toLowerCase();const r=K.filter(k=>(k[0]+k[1]).toLowerCase().includes(f));
+ $('#cmds').innerHTML=r.length?r.map((k,i)=>'<div class="cmd"><code data-i="'+K.indexOf(k)+'" tabindex="0" role="button">'+esc(sub(k[0]))+'</code><span>'+k[1]+'</span></div>').join(''):'<p class="lead">No match. Try “logs”, “restart” or “reload”.</p>'}
+$('#q').oninput=e=>renderK(e.target.value);
+$('#cmds').addEventListener('click',e=>{const c=e.target.closest('code');if(c){copy(sub(K[c.dataset.i][0]));const o=c.textContent;c.textContent='Copied';setTimeout(()=>c.textContent=o,900)}});
+const F=[['APP','App name','myproject'],['USER','Linux user','deploy'],['BE','Backend folder (project root)','/home/deploy/myproject_be'],['VENV','Virtualenv folder',''],['WSGI','App module (module:callable)',''],['SOCK','Gunicorn socket','/tmp/myproject.sock'],['FE','React project folder','/home/deploy/myproject_fe'],['PORT','React serve port','3000']];
+const DEF={django:{app:'myproject.wsgi:application',w:'--worker-class=gthread --workers 2 --threads 3'},flask:{app:'app:app',w:'--worker-class=gthread --workers 2 --threads 3'},fastapi:{app:'main:app',w:'--worker-class=uvicorn.workers.UvicornWorker --workers 2'}};
+const HINT={django:'Gunicorn runs your WSGI app, for example myproject.wsgi:application, with threaded workers.',flask:'Gunicorn runs your WSGI app object, for example app:app (file app.py, variable app).',fastapi:'ASGI app: Gunicorn manages Uvicorn workers. Run pip install gunicorn uvicorn in the venv, and use module:app, for example main:app.'};
+const store={};try{Object.assign(store,JSON.parse(localStorage.getItem('sv_vals')||'{}'))}catch(e){}
+function V(){const v={};F.forEach(([k,,d])=>{v[k]=(store[k]||'').trim()||d});v.VENV=v.VENV||v.BE.replace(/\/$/,'')+'/venv';v.HOME='/home/'+v.USER;v.FW=store.FW||'django';v.WSGI=v.WSGI||DEF[v.FW].app;v.WORKER=DEF[v.FW].w;v.PKG=v.WSGI.split('.')[0];return v}
+function sub(t){const v=V();return t.replace(/\{\{(\w+)\}\}/g,(m,k)=>k in v?v[k]:m)}
+const tn=[];const tw=document.createTreeWalker($('.wrap'),NodeFilter.SHOW_TEXT);let nd;while(nd=tw.nextNode()){if(nd.nodeValue.includes('{{'))tn.push([nd,nd.nodeValue])}
+function refresh(){const w=$('[data-k="WSGI"]');if(w)w.placeholder=DEF[V().FW].app;$('#fwhint').textContent=HINT[V().FW];tn.forEach(([n,t])=>n.nodeValue=sub(t));renderCfg();renderK($('#q').value)}
+$('#fields').innerHTML=F.map(([k,l,d])=>'<label>'+l+'<input type="text" data-k="'+k+'" placeholder="'+(d||(k==='VENV'?'defaults to backend folder + /venv':''))+'" value="'+(store[k]||'').replace(/"/g,'&quot;')+'" spellcheck="false" autocomplete="off"></label>').join('');
+const fwEl=$('#fw');fwEl.value=store.FW||'django';fwEl.onchange=()=>{store.FW=fwEl.value;try{localStorage.setItem('sv_vals',JSON.stringify(store))}catch(x){}refresh()};
+$('#fields').addEventListener('input',e=>{const i=e.target;if(i.dataset.k){store[i.dataset.k]=i.value;try{localStorage.setItem('sv_vals',JSON.stringify(store))}catch(x){}refresh()}});
+$('#reset').onclick=()=>{F.forEach(f=>delete store[f[0]]);delete store.FW;fwEl.value='django';$$('#fields input').forEach(i=>i.value='');try{localStorage.removeItem('sv_vals')}catch(x){}refresh()};
+renderK();renderCfg();refresh();addCopy(document);prog($('#setup'));prog($('#uninstall'));
+</script>
+</body>
+</html>
